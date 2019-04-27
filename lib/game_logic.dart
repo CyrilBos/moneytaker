@@ -37,6 +37,8 @@ class Character {
   int curHp = 100,
       maxHp = 100;
 
+  double get hpPercentage => curHp / maxHp;
+
   bool get isAlive => curHp > 0;
   bool get isDead => !isAlive;
 
