@@ -7,14 +7,17 @@ import 'package:money_taker/game_logic.dart';
 import 'package:money_taker/game_over.dart';
 
 class CombatPage extends Component {
+  bool initialized = false;
+
   Sprite playerSprite = Sprite('player.png');
   Sprite enemySprite = Sprite('enemy.png');
 
   SpriteComponent playerComponent;
+
   SpriteComponent enemyComponent;
 
   Player player = Player(100, 100, 10, GoldCurrency(10));
-  List<Enemy> enemies = [Enemy(50, 50, 5, GoldCurrency(30))];
+  Enemy enemy = Enemy(50, 50, 5, GoldCurrency(30));
 
   bool _isPlayerTurn = true;
 
@@ -27,6 +30,21 @@ class CombatPage extends Component {
 
 
   Size screenSize;
+
+  void resize(Size size) {
+    screenSize = size;
+
+    playerComponent = SpriteComponent.fromSprite(
+        size.width * 0.3, size.height * 0.8, playerSprite);
+    enemyComponent = SpriteComponent.fromSprite(
+        size.width * 0.3, size.height * 0.8, enemySprite);
+
+    playerComponent.x = 50;
+    playerComponent.y = 20;
+
+    enemyComponent.x = size.width - enemyComponent.width - playerComponent.x * 2;
+    enemyComponent.y = 0;
+  }
 
   @override
   void render(Canvas c) {
@@ -41,37 +59,32 @@ class CombatPage extends Component {
 
   @override
   void update(double t) {
-    // TODO: implement update
-  }
-
-  void resize(Size size) {
-    screenSize = size;
-    playerComponent = SpriteComponent.fromSprite(
-        size.width * 0.4, size.height * 0.8, playerSprite);
-    enemyComponent = SpriteComponent.fromSprite(
-        size.width * 0.4, size.height * 0.8, enemySprite);
+    if (!initialized) {
+      initState();
+      initialized = true;
+    }
+    if (player.isAlive && enemy.isAlive) {
+      turnTimeout -= t;
+      if (turnTimeout <= 0) {
+        turnTimeout = 0;
+        endPlayerTurn();
+      }
+    }
   }
 
   /******************** STATE ********************/
-  @override
   void initState() {
     GameLogic.player = player;
-    GameLogic.enemies = enemies;
+    GameLogic.enemies = [enemy];
 
     playerTurn();
   }
 
   set isPlayerTurn(bool val) {
-    setState(() {
-      _isPlayerTurn = val;
-    });
+    _isPlayerTurn = val;
   }
 
   /********************** *************************/
-
-  void startPlayerTurnTimer() {
-    turnTimer = Timer.periodic(TurnTickDuration, handleTimer);
-  }
 
   void handleTimer(Timer timer) async {
     print("time tick");
@@ -80,21 +93,19 @@ class CombatPage extends Component {
     } else {
       double newTimeout = turnTimeout -= TurnTick / 1000;
       if (newTimeout < 0) newTimeout = 0;
-      setState(() => (turnTimeout = newTimeout));
+      turnTimeout = newTimeout;
     }
   }
 
   void playerTurn() {
-    setState(() => turnTimeout = 3.0);
-    startPlayerTurnTimer();
+    turnTimeout = 3.0;
     isPlayerTurn = true;
   }
 
   Future<void> endPlayerTurn() async {
-    turnTimer.cancel();
     isPlayerTurn = false;
     if (player.isAlive) {
-      if (enemies.length == 0) {
+      if (enemy.isDead) {
         navigateGameWon();
       } else {
         await enemiesTurn();
@@ -113,67 +124,30 @@ class CombatPage extends Component {
   }
 
   void navigateGameWon() {
-    Navigator.push(MaterialPageRoute(builder: (context) => GameWon()));
+    print("win");
   }
 
   void navigateGameOver() {
-    Navigator.push(
-        MaterialPageRoute(builder: (context) => GameOver()));
+    print("lose");
   }
 
   /******************** INPUT ************************/
 
-  playerAttack(Enemy enemy, BuildContext context) {
+  static void handleInput(dx, dy) {
+    print(dx);
+    print(dy);
+  }
+
+  playerAttack() {
     print("Player attacked enemy ${enemy.hashCode}");
     if (_isPlayerTurn) {
       GameLogic.attack(player, enemy);
       if (enemy.isDead) {
-        enemies.remove(enemy);
+        navigateGameWon();
       }
       endPlayerTurn();
     }
   }
 
   /******************** ***** ************************/
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-        body: Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: <
-              Widget>[
-        buildPlayerInfo(),
-        buildTimer(),
-        buildEnemies(context),
-      ] // This trailing comma makes auto-formatting nicer for build methods.
-          ),
-    ));
-  }
-
-  Widget buildTimer() {
-    if (!_isPlayerTurn) return Text("ENEMIES TURN!");
-
-    return Text("${turnTimeout.toStringAsFixed(2)}S REMAINING TO PLAY!");
-  }
-
-  Widget buildPlayerInfo() {
-    return Text("YOUR HEALTH: ${player.curHp} / ${player.maxHp}");
-  }
-
-  Widget buildEnemies(BuildContext context) {
-    return Column(
-      children: enemies.map((enemy) => buildEnemy(enemy)).toList(),
-    );
-  }
-
-  Widget buildEnemy(Enemy enemy) {
-    return Column(children: [
-      Text("ENEMY HEALTH: ${enemies[0].curHp} / ${enemies[0].maxHp}"),
-      FloatingActionButton(
-        onPressed: () => playerAttack(enemies[0]),
-        tooltip: 'Increment',
-        child: Icon(Icons.thumb_down),
-      )
-    ]);
-  }
 }

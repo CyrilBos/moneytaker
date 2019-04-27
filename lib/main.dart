@@ -11,21 +11,25 @@ import 'package:flutter/services.dart';
 import 'combat_page.dart';
 
 void main() async {
+  Flame.images.load('player.png');
+  Flame.images.load('enemy.png');
   Util flameUtil = Util();
   await flameUtil.fullScreen();
   await flameUtil.setOrientation(DeviceOrientation.landscapeRight);
   MoneyTaker game = MoneyTaker();
-  Flame.util.addGestureRecognizer(new TapGestureRecognizer()
-    ..onTapDown = (TapDownDetails evt) => game.handleInput(evt.globalPosition.dx, evt.globalPosition.dy));
   runApp(game.widget);
+  Flame.util.addGestureRecognizer(HorizontalDragGestureRecognizer()
+      ..onEnd = game.handleHorizontalDrag);
 }
 
 class MoneyTaker extends BaseGame {
+  CombatPage combatPage = CombatPage();
   MoneyTaker() {
-    add(CombatPage());
+    add((combatPage));
   }
 
-  handleInput() {
-
+  handleHorizontalDrag(DragEndDetails details) {
+    print(details);
+    combatPage.playerAttack();
   }
 }
