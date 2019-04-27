@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flame/components/component.dart';
 import 'package:flame/flame.dart';
 import 'package:flame/game.dart';
 import 'package:flame/position.dart';
@@ -14,6 +15,9 @@ import 'character_component.dart';
 const TextConfig timerText = TextConfig(
     fontSize: 32.0, fontFamily: 'Awesome Font', color: Color(0xffff0000));
 
+const TextConfig goldText = TextConfig(
+    fontSize: 32.0, fontFamily: 'Awesome Font', color: Color(0xfff4d142));
+
 class MoneyTaker extends BaseGame {
   Size screenSize;
 
@@ -24,7 +28,9 @@ class MoneyTaker extends BaseGame {
   final Sprite enemySprite = Sprite('enemy.png');
   CharacterComponent enemyComponent;
 
-  bool initialized = false;
+  final SpriteComponent attackIcon =
+      SpriteComponent.fromSprite(50, 50, Sprite('attackIcon.png'));
+  bool displayAttackIcon = false;
 
   Player player = Player(100, 100, 10, GoldCurrency(100));
   Enemy enemy = Enemy(50, 50, 5, GoldCurrency(30));
@@ -35,7 +41,7 @@ class MoneyTaker extends BaseGame {
   static const TurnDuration = 3.0; // s
   static const TurnTick = 16; // ms
   static const TurnTickDuration =
-  const Duration(milliseconds: TurnTick); // for 60 fps
+      const Duration(milliseconds: TurnTick); // for 60 fps
   static double turnTimeout = TurnDuration;
 
   bool isCombatFinished = false;
@@ -62,6 +68,11 @@ class MoneyTaker extends BaseGame {
         playerStartPosition.x, playerStartPosition.y, this);
     enemyComponent = CharacterComponent(enemy, enemySprite,
         screenSize.width * 0.7, playerStartPosition.y, this);
+
+    GameLogic.player = player;
+    GameLogic.enemy = enemy;
+
+    playerTurn();
   }
 
   void render(Canvas c) {
@@ -72,10 +83,17 @@ class MoneyTaker extends BaseGame {
 
     c.save();
     playerComponent.render(c);
+
+    if (displayAttackIcon) {
+      attackIcon.render(c);
+    }
+
     c.restore();
     enemyComponent.render(c);
 
     c.restore();
+    goldText.render(c, player.gold.amount.toString(),
+        Position(playerStartPosition.x, playerStartPosition.y + 50));
     timerText.render(c, getTimerText(),
         Position(playerStartPosition.x + playerComponent.width + 20, 0));
   }
@@ -88,10 +106,8 @@ class MoneyTaker extends BaseGame {
 
   @override
   void update(double t) {
-    if (!initialized) {
-      initState();
-      initialized = true;
-    } else if (isCombatFinished) {} else if (_isPlayerTurn) {
+    if (isCombatFinished) {
+    } else if (_isPlayerTurn) {
       turnTimeout -= t;
       if (turnTimeout <= 0) {
         print("Player failed to play!");
@@ -102,13 +118,6 @@ class MoneyTaker extends BaseGame {
   }
 
   /******************** STATE ********************/
-  void initState() {
-    GameLogic.player = player;
-    GameLogic.enemies = [enemy];
-
-    playerTurn();
-  }
-
   set isPlayerTurn(bool val) {
     _isPlayerTurn = val;
   }
@@ -165,11 +174,18 @@ class MoneyTaker extends BaseGame {
   void navigateGameWon() {
     print("win");
     isCombatFinished = true;
+    isPlayerTurn = false;
+    player.loot(enemy);
+    enemy = GameLogic.nextEnemy(enemy);
+    enemyComponent.character = enemy;
+    isCombatFinished = false;
+    playerTurn();
   }
 
   void navigateGameOver() {
     print("lose");
     isCombatFinished = true;
+    isPlayerTurn = false;
   }
 
   /********************** *************************/
@@ -182,7 +198,6 @@ class MoneyTaker extends BaseGame {
   }
 
   void handleHorizontalDragEnd(DragEndDetails details) {
-    print(details);
     playerComponent.charX = playerStartPosition.x;
     if (isPlayerAttacking && _isPlayerTurn) {
       playerAttack();
@@ -202,12 +217,13 @@ class MoneyTaker extends BaseGame {
       final displacement = (dragX - startDrag);
 
       final double endPoint = enemyComponent.x - (playerComponent.width) - 20;
-      playerComponent.charX =
-          (playerStartPosition.x + displacement).clamp(
-              playerStartPosition.x, endPoint);
+      playerComponent.charX = (playerStartPosition.x + displacement)
+          .clamp(playerStartPosition.x, endPoint);
 
-      if (displacement > enemyComponent.x - playerComponent.x) {
+      if (displacement > (enemyComponent.x - playerComponent.x) / 2) {
         isPlayerAttacking = true;
+      } else {
+        isPlayerAttacking = false;
       }
     }
   }

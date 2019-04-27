@@ -6,7 +6,7 @@ final Random Rng = Random();
 
 class GameLogic {
   static Player player;
-  static List<Enemy> enemies;
+  static Enemy enemy;
 
   static Level currentLevel;
 
@@ -20,28 +20,32 @@ class GameLogic {
   }
 
   static Future<void> enemiesTurn() async {
-    for (final enemy in enemies) {
-      computeAI(enemy);
-    }
+    computeAI(enemy);
     await Future.delayed(const Duration(seconds: 1));
   }
-}
 
+  static nextEnemy(Enemy enemy) {
+    enemy = Enemy(
+        (enemy.maxHp * 1.15).round(),
+        (enemy.maxHp * 1.15).round(),
+        (enemy._damage * 1.15).round(),
+        GoldCurrency((enemy.gold.amount * 1.15).round()));
+    return enemy;
+  }
+}
 
 class Level {
   int id;
 }
 
-
 class Character {
-  int curHp = 100,
-      maxHp = 100;
+  int curHp = 100, maxHp = 100;
 
   double get hpPercentage => curHp / maxHp;
 
   bool get isAlive => curHp > 0;
-  bool get isDead => !isAlive;
 
+  bool get isDead => !isAlive;
 
   int _damage = 10;
   int speed; // TODO
@@ -66,36 +70,34 @@ class Character {
 
     gold.lose(goldUsed);
 
-    int attackDamage = ((0.75 + Rng.nextDouble() * 0.5 +
-        goldUsed / 100 * 0.25) * _damage).round();
+    int attackDamage =
+        ((0.75 + Rng.nextDouble() * 0.5 + goldUsed / 100 * 0.25) * _damage)
+            .round();
     print("attacking for $attackDamage");
 
     return attackDamage;
   }
 
-
   // TODO *********************
-  upgradeDamage() {
+  upgradeDamage() {}
 
-  }
+  upgradeHealth() {}
 
-  upgradeHealth() {
-
-  }
-
-  upgradeSpeed() {
-
-  }
+  upgradeSpeed() {}
 }
 
 class Enemy extends Character {
-  Enemy(int curHp, int maxHp, int damage, GoldCurrency gold) : super(curHp, maxHp, damage, gold);
+  Enemy(int curHp, int maxHp, int damage, GoldCurrency gold)
+      : super(curHp, maxHp, damage, gold);
 }
 
-
 class Player extends Character {
-  Player(int curHp, int maxHp, int damage, GoldCurrency gold) : super(curHp, maxHp, damage, gold);
+  Player(int curHp, int maxHp, int damage, GoldCurrency gold)
+      : super(curHp, maxHp, damage, gold);
 
+  void loot(Enemy enemy) {
+    gold.amount += enemy.gold.amount;
+  }
 }
 
 class Currency {
@@ -132,5 +134,3 @@ class PurpleCurrency extends Currency {
 
   PurpleCurrency(int amount) : super(amount);
 }
-
-
